@@ -7,7 +7,7 @@ void print_matrix(char* text, int matrix[N][N]) {
     std::cout << text << std::endl;
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
-            printf(" %d", a[i][j]);
+            printf(" %d\t", matrix[i][j]);
         }
         printf ("\n");
     }
@@ -23,5 +23,37 @@ void initMatrix(int matrix[N][N]) {
 }
 
 int main(int argc, char *argv[]) {
+    int rank, size, sum = 0;
+    int a[N][N], b[N][N], c[N][N], aRows[N], cRows[N];
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0) {
+        srand(time(NULL));
+        initMatrix(a);
+        initMatrix(b);
+
+        print_matrix("Matrix #1:", a);
+        print_matrix("Matrix #2:", b);
+    }
+
+    MPI_Scatter(a, N*N/size, MPI_INT, aRows, N*N/size, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(b, N*N, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            sum += aRows[j] * b[j][i];
+        }
+        cRows[i] = sum;
+        sum = 0;
+    }
+
+    MPI_Gather(cRows, N*N/size, MPI_INT, c, N*N/size, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
+    if (rank == 0)
+        print_matrix("Result:", c);
     return 0;
 }
